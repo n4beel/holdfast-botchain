@@ -69,6 +69,20 @@ export function isBotChainId(id: number | undefined): id is BotChainId {
   return id === botChain.id || id === bohrTestnet.id;
 }
 
+/**
+ * Is this the network THIS BUILD runs on?
+ *
+ * Distinct from `isBotChainId`, and the distinction is load-bearing: both 677 and 968 are BOT
+ * Chain, so `isBotChainId` is true for a wallet sitting on the wrong one. A mainnet build that
+ * gated on `isBotChainId` let a wallet on Bohr straight through and then transacted against the
+ * testnet contract, with nothing to show for it but a badge that flipped on connect.
+ */
+// A type guard, not a plain boolean: it stands where `isBotChainId` used to, and the code after
+// it needs `chainId` narrowed to a BotChainId. Sound, because activeBotChain is one of the two.
+export function isActiveChain(id: number | undefined): id is BotChainId {
+  return id === activeBotChain.id;
+}
+
 /** The chain definition for a BOT Chain ID. Defaults to the testnet for anything unrecognised. */
 export function botChainById(chainId: number) {
   return chainId === botChain.id ? botChain : bohrTestnet;

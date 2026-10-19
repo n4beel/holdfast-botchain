@@ -5,7 +5,7 @@ import { useAccount, useChainId, useConnect, useSwitchChain } from "wagmi";
 import Panel from "@/components/ui/Panel";
 import Button from "@/components/ui/Button";
 import ConnectButton from "@/components/ui/ConnectButton";
-import { activeBotChain, faucetUrl, isBotChainId } from "@/lib/botchain/chain";
+import { activeBotChain, botChainById, faucetUrl, isActiveChain, isBotChainId } from "@/lib/botchain/chain";
 import { isDeployed } from "@/lib/botchain/deployment";
 import { useToast } from "@/components/ui/Toast";
 import { hasInjectedWallet, WALLET_INSTALL_URL } from "@/lib/wallet";
@@ -85,11 +85,27 @@ export default function BotChainGate({
     );
   }
 
-  if (!isBotChainId(chainId)) {
+  // The app's OWN network, not merely "a BOT Chain network".
+  //
+  // This used to accept either chain, because both are BOT Chain and `isBotChainId` says so. The
+  // result on a mainnet build was that a wallet left on Bohr sailed through the gate and the app
+  // quietly read and wrote the testnet contract — the only outward sign being the network badge
+  // flipping from Mainnet to Testnet the moment the wallet connected. Two networks that share a
+  // codebase are still two networks, and a deal signed on the wrong one is simply lost.
+  if (!isActiveChain(chainId)) {
+    const onOtherBotChain = isBotChainId(chainId);
     return (
       <Notice title="Wrong network">
         <p className="mb-4">
-          Your wallet is on another network. Switch to {activeBotChain.name} to continue.
+          {onOtherBotChain ? (
+            <>
+              Your wallet is on {botChainById(chainId).name}, but
+              this app runs on {activeBotChain.name}. They are separate chains: contracts and
+              balances on one do not exist on the other.
+            </>
+          ) : (
+            <>Your wallet is on another network. Switch to {activeBotChain.name} to continue.</>
+          )}
         </p>
         <Button
           size="sm"
