@@ -19,13 +19,20 @@ interface PageShellProps {
  * Ledger shell: a right-hand rail carrying the state machine.
  *
  * Holdfast's whole difficulty is that two parties must both act and either may vanish. The rail
- * keeps the four states and the deadline rule permanently in view on the right, so the escape
- * hatch — the buyer can reclaim after the deadline — is never something a user has to go looking
- * for. The rail is on the right rather than the left specifically so it does not read as Scatter's.
+ * keeps the states and the deadline rule permanently in view on the right, so the escape hatch —
+ * the buyer can reclaim after the deadline — is never something a user has to go looking for. The
+ * rail is on the right rather than the left specifically so it does not read as Scatter's.
+ *
+ * These are the contract's six states, not a simplification of them. The rail used to list four,
+ * collapsing "the seller has confirmed" and "the buyer has confirmed" into one "Confirmed" — which
+ * is the same mistake that made the deal page call a half-confirmed deal "Released". A reader
+ * whose deal says "Buyer Confirmed" must be able to find that name here.
  */
 const STATES = [
-  ["Open", "Funded by the buyer, waiting on confirmations."],
-  ["Confirmed", "Both sides agreed. The seller can be paid."],
+  ["Open", "Funded by the buyer. Neither side has confirmed."],
+  ["Seller Confirmed", "The seller has agreed. Waiting on the buyer."],
+  ["Buyer Confirmed", "The buyer has agreed. Waiting on the seller."],
+  ["Both Confirmed", "Both sides agreed. The funds can be released to the seller."],
   ["Released", "Paid to the seller. Final."],
   ["Refunded", "Returned to the buyer after the deadline. Final."],
 ];

@@ -45,6 +45,56 @@ export function isFinalized(deal: HoldfastDeal): boolean {
   return deal.state === DealState.Released || deal.state === DealState.Refunded;
 }
 
+/**
+ * Which actions a given viewer may take on a deal right now.
+ *
+ * Kept here, as a pure function over the contract's own six states, because the version of this
+ * that lived inline in the deal page was written against a four-state enum and was wrong in three
+ * separate ways: it printed BuyerConfirmed as "Released", it offered Release from
+ * SellerConfirmed (which the contract rejects), and it only ever showed a confirm button from
+ * Open — so whichever party went second could never confirm, and no deal could reach
+ * BothConfirmed at all. None of that was reachable by a test while it sat in JSX.
+ *
+ * Mirrors the contract exactly:
+ *   confirmBySeller — seller only, from Open or BuyerConfirmed
+ *   confirmByBuyer  — buyer only, from Open or SellerConfirmed
+ *   release         — anyone, only from BothConfirmed
+ *   refund          — after the deadline, from any state before BothConfirmed
+ */
+export interface DealActions {
+  confirmAsSeller: boolean;
+  confirmAsBuyer: boolean;
+  release: boolean;
+  refund: boolean;
+}
+
+export function availableActions(
+  deal: HoldfastDeal,
+  viewer: Address | undefined,
+  now?: number,
+): DealActions {
+  const none: DealActions = {
+    confirmAsSeller: false,
+    confirmAsBuyer: false,
+    release: false,
+    refund: false,
+  };
+  if (isFinalized(deal)) return none;
+
+  const who = viewer?.toLowerCase();
+  const isBuyer = who !== undefined && who === deal.buyer.toLowerCase();
+  const isSeller = who !== undefined && who === deal.seller.toLowerCase();
+
+  return {
+    confirmAsSeller:
+      isSeller && (deal.state === DealState.Open || deal.state === DealState.BuyerConfirmed),
+    confirmAsBuyer:
+      isBuyer && (deal.state === DealState.Open || deal.state === DealState.SellerConfirmed),
+    release: canRelease(deal),
+    refund: isBuyer && canRefund(deal, now),
+  };
+}
+
 export function formatDeadline(deadline: number): string {
   return new Date(deadline * 1000).toLocaleString(undefined, {
     year: "numeric",

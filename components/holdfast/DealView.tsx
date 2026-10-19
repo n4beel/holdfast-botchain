@@ -14,6 +14,7 @@ import { activeBotChain, addressUrl, isBotChainId } from "@/lib/botchain/chain";
 import { formatNativeAmount } from "@/lib/botchain/amount";
 import { getDeployment, isDeployed } from "@/lib/botchain/deployment";
 import { holdfastAbi } from "@/lib/botchain/abi";
+import { availableActions, DealState, dealStatusLabel } from "@/lib/holdfast";
 
 type Deal = {
   buyer: Address;
@@ -23,7 +24,33 @@ type Deal = {
   amount: bigint;
 };
 
-const STATE_LABEL = ["Open", "Confirmed", "Released", "Refunded"] as const;
+/**
+ * What the deal is waiting on, said from the reader's side.
+ *
+ * The contract has six states, not four: a deal that one party has confirmed is a different thing
+ * depending on WHICH party, because the other one still has to act. This page used to carry its
+ * own four-name table — Open, Confirmed, Released, Refunded — which meant BuyerConfirmed (2) was
+ * printed as "Released" on a deal where no money had moved, and SellerConfirmed (1) offered a
+ * Release button that the contract could only reject. `dealStatusLabel` in lib/holdfast.ts had
+ * the right six names the whole time; this now uses it, and adds who is being waited on.
+ */
+function waitingOn(state: number, isBuyer: boolean, isSeller: boolean): string | null {
+  if (state === DealState.Open) return "Neither side has confirmed yet.";
+  if (state === DealState.SellerConfirmed) {
+    return isBuyer
+      ? "The seller has confirmed. Waiting on you."
+      : "The seller has confirmed. Waiting on the buyer.";
+  }
+  if (state === DealState.BuyerConfirmed) {
+    return isSeller
+      ? "The buyer has confirmed. Waiting on you."
+      : "The buyer has confirmed. Waiting on the seller.";
+  }
+  if (state === DealState.BothConfirmed) {
+    return "Both sides have confirmed. The funds can be released to the seller.";
+  }
+  return null;
+}
 
 /**
  * A deal, and whichever action is actually yours.
@@ -33,13 +60,14 @@ const STATE_LABEL = ["Open", "Confirmed", "Released", "Refunded"] as const;
  * money is ever stuck — an unconfirmed deal becomes refundable to the buyer once it passes, and a
  * user who does not know that will assume the opposite.
  */
-function DealBody() {
+function DealBody({ initialId }: { initialId?: string }) {
   const chainId = useChainId();
   const { address } = useAccount();
   const { toast } = useToast();
   const { writeContractAsync } = useWriteContract();
   const search = useSearchParams();
-  const fromQuery = search.get("id") ?? "";
+  // /deal/<id> wins over /deal?id=<id>; both resolve to the same view.
+  const fromQuery = initialId ?? search.get("id") ?? "";
 
   const [typed, setTyped] = useState(fromQuery);
   const [stage, setStage] = useState<TxStage>("idle");
@@ -112,7 +140,20 @@ function DealBody() {
   const isSeller = Boolean(address && deal && address.toLowerCase() === deal.seller.toLowerCase());
   const busy = stage === "signing" || stage === "pending";
   const pastDeadline = deal ? now > deal.deadline : false;
-  const finalised = deal ? deal.state >= 2 : false;
+  // Final means the money has moved — Released or Refunded. It used to mean `state >= 2`, which
+  // swept in BuyerConfirmed and BothConfirmed and hid the very buttons those states exist for.
+  const finalised = deal
+    ? deal.state === DealState.Released || deal.state === DealState.Refunded
+    : false;
+
+  // One source of truth for the buttons, shared with the tests in lib/__tests__/deal-actions.
+  const can = deal
+    ? availableActions(
+        { ...deal, deadline: Number(deal.deadline) },
+        address,
+        Number(now),
+      )
+    : null;
 
   return (
     <div className="flex flex-col gap-5">
@@ -142,7 +183,7 @@ function DealBody() {
               <div className="flex items-baseline justify-between gap-3 flex-wrap">
                 <span className="mono text-[11px] uppercase tracking-[0.08em]"
                   style={{ color: finalised ? "var(--success)" : "var(--accent)" }}>
-                  {STATE_LABEL[deal.state] ?? "Unknown"}
+                  {dealStatusLabel(deal.state)}
                 </span>
                 <span className="mono text-[18px]" style={{ color: "var(--text-primary)" }}>
                   {formatNativeAmount(deal.amount)} {symbol}
@@ -181,24 +222,34 @@ function DealBody() {
             <Panel>
               <div className="flex flex-col gap-3">
                 <div className="flex flex-wrap gap-2">
-                  {isSeller && deal.state === 0 && (
-                    <Button disabled={busy} onClick={() => act("confirmBySeller")}>Confirm as seller</Button>
+                  {/* Each side may confirm from Open, or after the other side has gone first. */}
+                  {can?.confirmAsSeller && (
+                    <Button disabled={busy} onClick={() => act("confirmBySeller")}>
+                      Confirm as seller
+                    </Button>
                   )}
-                  {isBuyer && deal.state === 0 && (
-                    <Button disabled={busy} onClick={() => act("confirmByBuyer")}>Confirm as buyer</Button>
+                  {can?.confirmAsBuyer && (
+                    <Button disabled={busy} onClick={() => act("confirmByBuyer")}>
+                      Confirm as buyer
+                    </Button>
                   )}
-                  {deal.state === 1 && (
-                    <Button disabled={busy} onClick={() => act("release")}>Release to the seller</Button>
+                  {can?.release && (
+                    <Button disabled={busy} onClick={() => act("release")}>
+                      Release to the seller
+                    </Button>
                   )}
-                  {isBuyer && pastDeadline && deal.state === 0 && (
-                    <Button variant="ghost" disabled={busy} onClick={() => act("refund")}>Reclaim as buyer</Button>
+                  {can?.refund && (
+                    <Button variant="ghost" disabled={busy} onClick={() => act("refund")}>
+                      Reclaim as buyer
+                    </Button>
                   )}
                 </div>
 
-                {deal.state === 0 && (
+                {waitingOn(deal.state, isBuyer, isSeller) && (
                   <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
-                    Both sides must confirm before the money can be released. Either of you may
-                    confirm first; the order does not matter.
+                    {waitingOn(deal.state, isBuyer, isSeller)}
+                    {deal.state === DealState.Open &&
+                      " Either of you may confirm first; the order does not matter."}
                   </p>
                 )}
 
@@ -220,10 +271,10 @@ function DealBody() {
   );
 }
 
-export default function DealView() {
+export default function DealView({ initialId }: { initialId?: string }) {
   return (
     <Suspense fallback={<Panel><Spinner label="Loading" /></Panel>}>
-      <DealBody />
+      <DealBody initialId={initialId} />
     </Suspense>
   );
 }
