@@ -6,10 +6,14 @@ import { formatEther, type Address } from "viem";
 import { useAccount, useChainId, usePublicClient, useReadContracts } from "wagmi";
 import Panel from "@/components/ui/Panel";
 import Spinner from "@/components/ui/Spinner";
-import { isBotChainId } from "@/lib/botchain/chain";
+import { activeBotChain, isBotChainId } from "@/lib/botchain/chain";
 import { getDeployment, isDeployed } from "@/lib/botchain/deployment";
 import { holdfastAbi } from "@/lib/botchain/abi";
 import { DealState, dealStatusLabel } from "@/lib/holdfast";
+
+// The chain's own symbol. Hardcoding "BOT" labelled every testnet amount as mainnet
+// currency, which is the confusion the network badge exists to prevent.
+const SYMBOL = activeBotChain.nativeCurrency.symbol;
 
 /**
  * Every deal the connected wallet is a party to.
@@ -181,7 +185,7 @@ export default function MyDeals() {
                 </Link>
 
                 <span className="mono text-[12px]" style={{ color: "var(--text-secondary)" }}>
-                  {deal ? `${formatEther(deal.amount)} BOT` : "…"}
+                  {deal ? `${formatEther(deal.amount)} ${SYMBOL}` : "…"}
                 </span>
 
                 <span className="text-[11px] uppercase tracking-[0.06em]" style={{ color: "var(--text-tertiary)" }}>
