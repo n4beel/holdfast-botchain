@@ -91,13 +91,55 @@ export default function PageShell({ children, nav = [], title, description }: Pa
         {children}
       </main>
 
+      {/*
+        The ecosystem footer is required, not decorative. BOT Chain's project assessment criteria
+        ask that the footer or an ecosystem-partnership section carry the BOT Chain name and link
+        to both botchain.ai and the explorer; a site without it is not counted, however complete
+        the product is. It lives in the shared shell so no project can ship missing it.
+      */}
       <footer
-        className="flex-shrink-0 mx-auto w-full max-w-[880px] px-4 py-5 md:px-6"
+        className="flex-shrink-0 mx-auto w-full max-w-[880px] px-4 py-6 md:px-6"
         style={{ borderTop: "1px solid var(--border-subtle)" }}
       >
-        <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
-          {app.tagline} Built on BOT Chain.
-        </p>
+        <div className="flex flex-col gap-3">
+          <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+            {app.tagline}
+          </p>
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <span
+              className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.06em]"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              <span
+                aria-hidden="true"
+                className="inline-block w-2 h-2 flex-shrink-0"
+                style={{ background: "var(--accent)", borderRadius: "1px" }}
+              />
+              Built on BOT Chain
+            </span>
+
+            <a
+              href="https://botchain.ai"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[11px] underline"
+              style={{ color: "var(--text-tertiary)" }}
+            >
+              botchain.ai
+            </a>
+
+            <a
+              href="https://scan.botchain.ai"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[11px] underline"
+              style={{ color: "var(--text-tertiary)" }}
+            >
+              BOT Chain Explorer
+            </a>
+          </div>
+        </div>
       </footer>
     </div>
   );
