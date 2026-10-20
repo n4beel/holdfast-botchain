@@ -2,6 +2,25 @@
 
 Escrow that releases when both sides confirm.
 
+### BOT Chain mainnet (677) — live
+
+| | |
+|---|---|
+| Contract | [`0x2f1b8b468a3e57d61C564D5099ED8223f0de91Cb`](https://scan.botchain.ai/address/0x2f1b8b468a3e57d61C564D5099ED8223f0de91Cb) · source verified |
+| Deploy block | 27329436 |
+
+### Bohr testnet (968) — live
+
+| | |
+|---|---|
+| Contract | [`0x38083268c3b2D7eBd93E272B88E6085F60a44f2d`](https://scan.bohr.life/address/0x38083268c3b2D7eBd93E272B88E6085F60a44f2d) · source verified |
+| Deploy block | 27397150 |
+
+The two addresses differ because the deployer's nonce diverged between the chains;
+each is this contract on its own network. The site targets mainnet.
+
+---
+
 ## What it does
 Holdfast holds BOT in escrow until both buyer and seller confirm delivery. Either party can confirm in any order. Once both have confirmed, anyone can trigger `release()`, which forwards the funds to the seller.
 
