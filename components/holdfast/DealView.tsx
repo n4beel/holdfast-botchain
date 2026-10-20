@@ -157,10 +157,12 @@ function DealBody({ initialId }: { initialId?: string }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <Panel>
-        <Input label="Deal number" value={typed} onChange={(e) => setTyped(e.target.value)}
-          placeholder="0" mono hint="No wallet needed to read one." />
-      </Panel>
+      {/* A field, not a panel. Under the list of your own deals a boxed input reads as a second
+          thing of equal weight, when it is the way to reach somebody else's. */}
+      <div className="max-w-sm">
+        <Input label="Open a deal by number" value={typed} onChange={(e) => setTyped(e.target.value)}
+          placeholder="0" mono hint="Anyone's. No wallet needed to read one." />
+      </div>
 
       {ready && read.isLoading && <Panel><Spinner label="Reading the chain" /></Panel>}
 
